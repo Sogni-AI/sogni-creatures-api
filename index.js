@@ -108,13 +108,6 @@ async function renderWithGuideImage(prompt, guideImagePath, outputFilePath) {
 
 // Initialize the Hapi server
 const init = async () => {
-  /*
-  const apiUrl = 'http://100.79.222.112:7860/';
-  axios.get(`${apiUrl}sdapi/v1/sd-models`).then(response => {
-    console.log('Available models:', response.data);
-  }).catch(console.error);
-  return;
-  */
   const server = Hapi.server({
     port: 8080,
     host: '0.0.0.0' // Listen on all network interfaces
@@ -129,17 +122,36 @@ const init = async () => {
     handler: async (request, h) => {
       let { animal, color, personality } = request.query;
 
-      // If any parameter is missing or invalid, pick randomly from the array
-      if (!animals.includes(animal)) {
-        animal = animals[Math.floor(Math.random() * animals.length)];
+      // Collect errors
+      let errors = [];
+
+      if (!animal || !animals.includes(animal)) {
+        errors.push({
+          parameter: 'animal',
+          message: `Invalid or missing animal parameter.`,
+          valid_values: animals
+        });
       }
 
-      if (!colors.includes(color)) {
-        color = colors[Math.floor(Math.random() * colors.length)];
+      if (!color || !colors.includes(color)) {
+        errors.push({
+          parameter: 'color',
+          message: `Invalid or missing color parameter.`,
+          valid_values: colors
+        });
       }
 
-      if (!personalities.includes(personality)) {
-        personality = personalities[Math.floor(Math.random() * personalities.length)];
+      if (!personality || !personalities.includes(personality)) {
+        errors.push({
+          parameter: 'personality',
+          message: `Invalid or missing personality parameter.`,
+          valid_values: personalities
+        });
+      }
+
+      // If there are any errors, respond with a 400 Bad Request
+      if (errors.length > 0) {
+        return h.response({ errors }).code(400);
       }
 
       // Build the prompt
@@ -149,8 +161,10 @@ const init = async () => {
       const guideImagePath = path.join(animalsDir, `${animal}.jpg`);
       const blurredGuideImagePath = path.join(animalsDir, `blurred_${animal}.jpg`);
 
-      // Blur the guide image
-      await blurImage(guideImagePath, blurredGuideImagePath);
+      // Blur the guide image if not already blurred
+      if (!fs.existsSync(blurredGuideImagePath)) {
+        await blurImage(guideImagePath, blurredGuideImagePath);
+      }
 
       // Render the image
       const imageFilename = `${animal}_${Date.now()}.png`;
