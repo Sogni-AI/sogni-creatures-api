@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration
-const apiUrl = 'http://100.79.222.112:7860/';
+const apiUrl = 'http://localhost:7860/';
 const useInitImage = true;  // Use guide images
 const rendersDir = path.join(__dirname, 'renders');
 const animalsDir = path.join(__dirname, 'animals');
@@ -18,7 +18,7 @@ const steps = 45;
 const cfgScale = 9;  // Guidance
 const resolution = { width: 1024, height: 1024 };
 const denoisingStrength = 0.75;
-const seed = 4128984066;
+//const seed = 4128984066;
 const sampler = 'Euler a';
 const scheduler = 'Karras';
 
@@ -81,7 +81,7 @@ async function renderWithGuideImage(prompt, guideImagePath, outputFilePath) {
       height: resolution.height,
       sampler_name: sampler,
       scheduler: scheduler,
-      seed: seed,
+      //seed: seed,
       denoising_strength: denoisingStrength,
       ...(useInitImage && { init_images: initImages }),
     };
