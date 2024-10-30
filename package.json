@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@hapi/hapi": "^21.3.12",
+    "@hapi/inert": "^7.1.0",
+    "axios": "^1.7.7",
+    "fs": "^0.0.1-security",
+    "sharp": "^0.33.5"
+  }
+}
