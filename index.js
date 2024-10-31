@@ -7,7 +7,7 @@ const path = require('path');
 
 // Configuration
 const apiUrl = 'http://localhost:7860/';
-const useInitImage = true;  // Use guide images
+const useInitImage = false;  // Use guide images
 const rendersDir = path.join(__dirname, 'renders');
 const animalsDir = path.join(__dirname, 'animals');
 
