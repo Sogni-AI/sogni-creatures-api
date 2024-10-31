@@ -12,9 +12,9 @@ const rendersDir = path.join(__dirname, 'renders');
 const animalsDir = path.join(__dirname, 'animals');
 
 const negativePrompt = 'malformation, bad anatomy, bad hands, missing fingers, cropped, low quality, bad quality, jpeg artifacts, watermark, text, more than one character, multiple heads, multiple faces, shadow, borders, background';
-const blurLevel = 20;  // Adjust as needed
+const blurLevel = 40;  // Adjust as needed
 const overrideModel = 'animagineXLV31_v31';  // Model to use
-const steps = 45;
+const steps = 35;
 const cfgScale = 9;  // Guidance
 const resolution = { width: 1024, height: 1024 };
 const denoisingStrength = 0.75;
