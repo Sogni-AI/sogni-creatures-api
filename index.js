@@ -2,23 +2,19 @@ const Hapi = require('@hapi/hapi');
 const Inert = require('@hapi/inert');
 const axios = require('axios');
 const sharp = require('sharp');
-const fs = require('fs');
 const path = require('path');
+const NodeCache = require('node-cache');
 
 // Configuration
 const apiUrl = 'http://localhost:7860/';
-const useInitImage = false;  // Use guide images
-const rendersDir = path.join(__dirname, 'renders');
-const animalsDir = path.join(__dirname, 'animals');
-
+const useInitImage = true; // Use guide images
 const negativePrompt = 'malformation, bad anatomy, bad hands, missing fingers, cropped, low quality, bad quality, jpeg artifacts, watermark, text, more than one character, multiple heads, multiple faces, shadow, borders, background';
-const blurLevel = 40;  // Adjust as needed
-const overrideModel = 'animagineXLV31_v31';  // Model to use
+const blurLevel = 40; // Adjust as needed
+const overrideModel = 'animagineXLV31_v31'; // Model to use
 const steps = 35;
-const cfgScale = 9;  // Guidance
+const cfgScale = 9; // Guidance
 const resolution = { width: 1024, height: 1024 };
 const denoisingStrength = 0.75;
-//const seed = 4128984066;
 const sampler = 'Euler a';
 const scheduler = 'Karras';
 
@@ -26,47 +22,78 @@ const animals = ['bee', 'crocodile', 'dog', 'jellyfish', 'koala', 'panda', 'scor
 const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'black', 'white', 'grey', 'brown'];
 const personalities = ['loyal', 'courageous', 'free-spirited', 'majestic', 'wise', 'energetic', 'curious', 'icy', 'fiery', 'psychic', 'degen', 'fairy', 'fighting', 'techno'];
 
-// Ensure renders folder exists
-if (!fs.existsSync(rendersDir)) {
-  fs.mkdirSync(rendersDir);
-}
+const animalsDir = path.join(__dirname, 'animals'); // Guide images directory
 
-// Function to blur the image by specified level
-async function blurImage(inputPath, outputPath) {
+// Initialize cache
+const cache = new NodeCache({ stdTTL: 3600 }); // 1 hour TTL
+
+// Create an Axios instance with connection pooling
+const axiosInstance = axios.create({
+  baseURL: apiUrl,
+  timeout: 30000, // 30 seconds timeout
+  httpAgent: new require('http').Agent({ keepAlive: true }),
+  httpsAgent: new require('https').Agent({ keepAlive: true }),
+});
+
+// Function to blur the image and cache it
+async function blurImage(inputPath) {
   try {
-    await sharp(inputPath)
+    const cachedImage = cache.get(`blurred_${path.basename(inputPath)}`);
+    if (cachedImage) {
+      console.log(`Using cached blurred image for: ${inputPath}`);
+      return cachedImage;
+    }
+
+    const blurredBuffer = await sharp(inputPath)
       .blur(blurLevel)
-      .toFile(outputPath);
-    console.log(`Image blurred successfully: ${inputPath}`);
+      .toBuffer();
+
+    cache.set(`blurred_${path.basename(inputPath)}`, blurredBuffer);
+    console.log(`Image blurred and cached: ${inputPath}`);
+    return blurredBuffer;
   } catch (error) {
     console.error(`Error blurring image: ${inputPath}`, error);
+    throw error;
   }
 }
 
-// Function to switch the model
-async function switchModel(model) {
+// Function to check the currently loaded model
+async function getCurrentModel() {
   try {
-    await axios.post(`${apiUrl}sdapi/v1/options`, {
-      sd_model_checkpoint: model
-    });
-    console.log(`Switched to model: ${model}`);
-    await new Promise(resolve => setTimeout(resolve, 5000)); // Add a 5-second delay
+    const response = await axiosInstance.get('sdapi/v1/options');
+    return response.data.sd_model_checkpoint;
   } catch (error) {
-    console.error(`Error switching model to ${model}:`, error);
+    console.error('Error fetching current model:', error.response ? error.response.data : error.message);
+    throw error;
   }
 }
 
-// Function to send the request to the API
-async function renderWithGuideImage(prompt, guideImagePath, outputFilePath) {
+// Initialize model only if needed based on the API response
+async function initializeModelIfNeeded(model) {
   try {
-    // Switch to the appropriate model
-    await switchModel(overrideModel);
+    const activeModel = await getCurrentModel();
+    if (activeModel === model) {
+      console.log(`Model ${model} is already loaded.`);
+      return;
+    }
 
-    // Read the blurred image and convert to base64 if using init_images
+    await axiosInstance.post('sdapi/v1/options', {
+      sd_model_checkpoint: model,
+    });
+    console.log(`Initialized with model: ${model}`);
+  } catch (error) {
+    console.error(`Error initializing model to ${model}:`, error.response ? error.response.data : error.message);
+    process.exit(1);
+  }
+}
+
+// Function to render the image
+async function renderWithGuideImage(prompt, blurredBuffer) {
+  try {
     let initImages = [];
     if (useInitImage) {
-      const blurredImage = fs.readFileSync(guideImagePath, { encoding: 'base64' });
-      initImages = [`data:image/jpeg;base64,${blurredImage}`];
+      const blurredImageBase64 = blurredBuffer.toString('base64');
+      initImages = [`data:image/jpeg;base64,${blurredImageBase64}`];
       console.log('Using guide image for rendering...');
     } else {
       console.log('Rendering without guide image...');
@@ -81,55 +108,70 @@ async function renderWithGuideImage(prompt, guideImagePath, outputFilePath) {
       height: resolution.height,
       sampler_name: sampler,
       scheduler: scheduler,
-      //seed: seed,
-      denoising_strength: denoisingStrength,
-      ...(useInitImage && { init_images: initImages }),
+      ...(useInitImage
+        ? {
+            init_images: initImages,
+            denoising_strength: denoisingStrength,
+          }
+        : {}),
     };
 
     console.log(`Sending rendering request for prompt: "${prompt}"`);
 
-    const startTime = Date.now();
+    const endpoint = useInitImage ? 'sdapi/v1/img2img' : 'sdapi/v1/txt2img';
+    const response = await axiosInstance.post(endpoint, requestData);
 
-    // Make the API call
-    const response = await axios.post(`${apiUrl}sdapi/v1/${useInitImage ? 'img2img' : 'txt2img'}`, requestData);
+    if (!response.data || !response.data.images || !response.data.images.length) {
+      console.error('No images returned from rendering API:', response.data);
+      throw new Error('No images returned from rendering API.');
+    }
 
-    const endTime = Date.now();
-    const renderTimeInSeconds = ((endTime - startTime) / 1000).toFixed(2);
-    console.log(`Rendering complete. Time taken: ${renderTimeInSeconds} seconds.`);
-
-    // Save the output image
     const imageBase64 = response.data.images[0];
-    fs.writeFileSync(outputFilePath, Buffer.from(imageBase64, 'base64'));
-    console.log(`Saved image to ${outputFilePath}`);
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+    console.log('Image rendered successfully.');
+
+    return imageBuffer;
   } catch (error) {
-    console.error('Error rendering image:', error);
+    console.error('Error rendering image:', error.response ? error.response.data : error.message);
+    throw error;
   }
 }
 
 // Initialize the Hapi server
 const init = async () => {
+  await initializeModelIfNeeded(overrideModel);
+
   const server = Hapi.server({
     port: 8080,
-    host: '0.0.0.0' // Listen on all network interfaces
+    host: '0.0.0.0',
+    routes: {
+      cors: {
+        origin: ['*'],
+      },
+    },
   });
 
   await server.register(Inert);
 
-  // Route to handle GET requests
   server.route({
     method: 'GET',
     path: '/',
     handler: async (request, h) => {
+      const startTime = Date.now(); // Start timing
+
+      // Ensure the correct model is set for each request
+      await initializeModelIfNeeded(overrideModel);
+
       let { animal, color, personality } = request.query;
 
-      // Collect errors
       let errors = [];
 
       if (!animal || !animals.includes(animal)) {
         errors.push({
           parameter: 'animal',
           message: `Invalid or missing animal parameter.`,
-          valid_values: animals
+          valid_values: animals,
         });
       }
 
@@ -137,7 +179,7 @@ const init = async () => {
         errors.push({
           parameter: 'color',
           message: `Invalid or missing color parameter.`,
-          valid_values: colors
+          valid_values: colors,
         });
       }
 
@@ -145,41 +187,53 @@ const init = async () => {
         errors.push({
           parameter: 'personality',
           message: `Invalid or missing personality parameter.`,
-          valid_values: personalities
+          valid_values: personalities,
         });
       }
 
-      // If there are any errors, respond with a 400 Bad Request
       if (errors.length > 0) {
         return h.response({ errors }).code(400);
       }
 
-      // Build the prompt
       const prompt = `A cute ${animal} against a solid fill background. Its body is ${color}-colored, with an expression and stance conveying a ${personality} personality. Solid Blank background, collectable creature, very cute and kawaii illustration, whimsical chibi art, lofi anime art, kanto style, semi-realistic fantasy animal, pokemon-style`;
 
-      // Get the guide image path
       const guideImagePath = path.join(animalsDir, `${animal}.jpg`);
-      const blurredGuideImagePath = path.join(animalsDir, `blurred_${animal}.jpg`);
+      let blurredBuffer;
 
-      // Blur the guide image if not already blurred
-      if (!fs.existsSync(blurredGuideImagePath)) {
-        await blurImage(guideImagePath, blurredGuideImagePath);
+      try {
+        blurredBuffer = cache.get(`blurred_${path.basename(guideImagePath)}`);
+        if (!blurredBuffer) {
+          blurredBuffer = await blurImage(guideImagePath);
+        }
+      } catch (error) {
+        console.error('Error retrieving blurred image:', error);
+        return h.response({ error: 'Error processing guide image.' }).code(500);
       }
 
-      // Render the image
-      const imageFilename = `${animal}_${Date.now()}.png`;
-      const outputFilePath = path.join(rendersDir, imageFilename);
+      try {
+        const imageBuffer = await renderWithGuideImage(prompt, blurredBuffer);
 
-      await renderWithGuideImage(prompt, blurredGuideImagePath, outputFilePath);
+        const endTime = Date.now(); // End timing
+        const totalRequestTime = ((endTime - startTime) / 1000).toFixed(2);
+        console.log(`Total request processing time: ${totalRequestTime} seconds`);
 
-      // Return the image file
-      return h.file(outputFilePath);
-    }
+        return h.response(imageBuffer)
+          .type('image/png')
+          .header('Content-Disposition', 'inline; filename="rendered_image.png"');
+      } catch (error) {
+        console.error('Error during image rendering:', error);
+        return h.response({ error: 'Error rendering image.' }).code(500);
+      }
+    },
   });
 
-  // Start the server
   await server.start();
   console.log('Server running on %s', server.info.uri);
 };
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+  process.exit(1);
+});
 
 init();
