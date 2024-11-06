@@ -17,6 +17,8 @@ const resolution = { width: 1024, height: 1024 };
 const denoisingStrength = 0.75;
 const sampler = 'Euler a';
 const scheduler = 'Karras';
+const removeBackground = true; // Set to false to disable background removal
+
 const animals = [
   "ant", "bear", "bee", "butterfly", "caterpillar", "cat", "crab", "crocodile",
   "deer", "dog", "dolphin", "dragon", "dragonfly", "eagle", "elephant", "fish",
@@ -217,42 +219,107 @@ const init = async () => {
       try {
         const imageBuffer = await renderWithGuideImage(prompt, blurredBuffer);
 
-        // Process the image to remove background color with tolerance
-        try {
-          const image = await Jimp.read(imageBuffer);
-          const tolerance = 30; // Adjust this value as needed
-          const bgColor = image.getPixelColor(0, 0); // Get top-left pixel color
-          const bgRGBA = Jimp.intToRGBA(bgColor);
+        if (removeBackground) {
+          // Process the image to remove background color using flood fill
+          try {
+            const image = await Jimp.read(imageBuffer);
+            const tolerance = 30; // Adjust this value as needed
+            const bgColor = image.getPixelColor(0, 0); // Get top-left pixel color
+            const bgRGBA = Jimp.intToRGBA(bgColor);
 
-          // Loop through each pixel and make background color transparent
-          image.scan(0, 0, image.bitmap.width, image.bitmap.height, function (x, y, idx) {
-            const pixelColor = this.getPixelColor(x, y);
-            const pixelRGBA = Jimp.intToRGBA(pixelColor);
+            const width = image.bitmap.width;
+            const height = image.bitmap.height;
 
-            // Calculate the color distance
-            const distance = Math.sqrt(
-              Math.pow(pixelRGBA.r - bgRGBA.r, 2) +
-              Math.pow(pixelRGBA.g - bgRGBA.g, 2) +
-              Math.pow(pixelRGBA.b - bgRGBA.b, 2)
-            );
-
-            if (distance <= tolerance) {
-              this.setPixelColor(0x00000000, x, y); // Set pixel to transparent
+            // Create a 2D array to keep track of visited pixels
+            const visited = new Array(height);
+            for (let y = 0; y < height; y++) {
+              visited[y] = new Array(width).fill(false);
             }
-          });
 
-          const pngBuffer = await image.getBufferAsync(Jimp.MIME_PNG);
+            // Queue for flood fill (pixels to process)
+            const queue = [];
 
+            // Add edge pixels to the queue
+            for (let x = 0; x < width; x++) {
+              queue.push({ x: x, y: 0 }); // Top edge
+              queue.push({ x: x, y: height - 1 }); // Bottom edge
+            }
+            for (let y = 1; y < height - 1; y++) {
+              queue.push({ x: 0, y: y }); // Left edge
+              queue.push({ x: width - 1, y: y }); // Right edge
+            }
+
+            // Directions for neighboring pixels (up, down, left, right)
+            const directions = [
+              { dx: -1, dy: 0 }, // Left
+              { dx: 1, dy: 0 },  // Right
+              { dx: 0, dy: -1 }, // Up
+              { dx: 0, dy: 1 },  // Down
+            ];
+
+            while (queue.length > 0) {
+              const { x, y } = queue.shift();
+
+              if (x < 0 || x >= width || y < 0 || y >= height) {
+                continue; // Out of bounds
+              }
+
+              if (visited[y][x]) {
+                continue; // Already processed
+              }
+
+              visited[y][x] = true;
+
+              const pixelColor = image.getPixelColor(x, y);
+              const pixelRGBA = Jimp.intToRGBA(pixelColor);
+
+              // Calculate the color distance
+              const distance = Math.sqrt(
+                Math.pow(pixelRGBA.r - bgRGBA.r, 2) +
+                Math.pow(pixelRGBA.g - bgRGBA.g, 2) +
+                Math.pow(pixelRGBA.b - bgRGBA.b, 2)
+              );
+
+              if (distance <= tolerance) {
+                // Set pixel to transparent
+                image.setPixelColor(0x00000000, x, y);
+
+                // Add neighboring pixels to the queue
+                for (const dir of directions) {
+                  const newX = x + dir.dx;
+                  const newY = y + dir.dy;
+
+                  if (newX >= 0 && newX < width && newY >= 0 && newY < height) {
+                    if (!visited[newY][newX]) {
+                      queue.push({ x: newX, y: newY });
+                    }
+                  }
+                }
+              }
+            }
+
+            const pngBuffer = await image.getBufferAsync(Jimp.MIME_PNG);
+
+            const endTime = Date.now(); // End timing
+            const totalRequestTime = ((endTime - startTime) / 1000).toFixed(2);
+            console.log(`Total request processing time: ${totalRequestTime} seconds`);
+
+            return h.response(pngBuffer)
+              .type('image/png')
+              .header('Content-Disposition', 'inline; filename="rendered_image.png"');
+          } catch (err) {
+            console.error('Error processing image:', err);
+            return h.response({ error: 'Error processing image.' }).code(500);
+          }
+        } else {
+          // Return the original image without background removal
           const endTime = Date.now(); // End timing
           const totalRequestTime = ((endTime - startTime) / 1000).toFixed(2);
           console.log(`Total request processing time: ${totalRequestTime} seconds`);
 
-          return h.response(pngBuffer)
+          return h.response(imageBuffer)
             .type('image/png')
             .header('Content-Disposition', 'inline; filename="rendered_image.png"');
-        } catch (err) {
-          console.error('Error processing image:', err);
-          return h.response({ error: 'Error processing image.' }).code(500);
         }
       } catch (error) {
         console.error('Error during image rendering:', error);
