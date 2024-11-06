@@ -4,8 +4,9 @@ const axios = require('axios');
 const sharp = require('sharp');
 const path = require('path');
 const NodeCache = require('node-cache');
+const Jimp = require('jimp'); // Using Jimp for image manipulation
 
-// Configuration
+// Configuration (same as before)
 const apiUrl = 'http://localhost:7860/';
 const useInitImage = true; // Use guide images
 const blurLevel = 40; // Adjust as needed
@@ -40,7 +41,7 @@ const axiosInstance = axios.create({
   httpsAgent: new require('https').Agent({ keepAlive: true }),
 });
 
-// Function to blur the image and cache it
+// Function to blur the image and cache it (same as before)
 async function blurImage(inputPath) {
   try {
     const cachedImage = cache.get(`blurred_${path.basename(inputPath)}`);
@@ -62,7 +63,7 @@ async function blurImage(inputPath) {
   }
 }
 
-// Function to check the currently loaded model
+// Function to check the currently loaded model (same as before)
 async function getCurrentModel() {
   try {
     const response = await axiosInstance.get('sdapi/v1/options');
@@ -73,7 +74,7 @@ async function getCurrentModel() {
   }
 }
 
-// Initialize model only if needed based on the API response
+// Initialize model only if needed based on the API response (same as before)
 async function initializeModelIfNeeded(model) {
   try {
     const activeModel = await getCurrentModel();
@@ -92,7 +93,7 @@ async function initializeModelIfNeeded(model) {
   }
 }
 
-// Function to render the image
+// Function to render the image (same as before)
 async function renderWithGuideImage(prompt, blurredBuffer) {
   try {
     let initImages = [];
@@ -201,7 +202,7 @@ const init = async () => {
 
       const prompt = `A cute ${animal} against a solid fill background, taking up full-page. Its body is ${color}-colored, with an expression and stance conveying a ${personality} personality. Solid Blank background, collectable creature, very cute and kawaii illustration, whimsical chibi art, lofi anime art, kanto style, fantasy animal, pokemon-style. No words or signatures.`;
 
-      const guideImagePath = path.join(animalsDir, `${animal}.jpg`);
+      const guideImagePath = path.join(animalsDir, `${animal}.jpg`); // Keeping the guide image as JPEG
       let blurredBuffer;
       try {
         blurredBuffer = cache.get(`blurred_${path.basename(guideImagePath)}`);
@@ -216,13 +217,43 @@ const init = async () => {
       try {
         const imageBuffer = await renderWithGuideImage(prompt, blurredBuffer);
 
-        const endTime = Date.now(); // End timing
-        const totalRequestTime = ((endTime - startTime) / 1000).toFixed(2);
-        console.log(`Total request processing time: ${totalRequestTime} seconds`);
+        // Process the image to remove background color with tolerance
+        try {
+          const image = await Jimp.read(imageBuffer);
+          const tolerance = 30; // Adjust this value as needed
+          const bgColor = image.getPixelColor(0, 0); // Get top-left pixel color
+          const bgRGBA = Jimp.intToRGBA(bgColor);
 
-        return h.response(imageBuffer)
-          .type('image/png')
-          .header('Content-Disposition', 'inline; filename="rendered_image.png"');
+          // Loop through each pixel and make background color transparent
+          image.scan(0, 0, image.bitmap.width, image.bitmap.height, function (x, y, idx) {
+            const pixelColor = this.getPixelColor(x, y);
+            const pixelRGBA = Jimp.intToRGBA(pixelColor);
+
+            // Calculate the color distance
+            const distance = Math.sqrt(
+              Math.pow(pixelRGBA.r - bgRGBA.r, 2) +
+              Math.pow(pixelRGBA.g - bgRGBA.g, 2) +
+              Math.pow(pixelRGBA.b - bgRGBA.b, 2)
+            );
+
+            if (distance <= tolerance) {
+              this.setPixelColor(0x00000000, x, y); // Set pixel to transparent
+            }
+          });
+
+          const pngBuffer = await image.getBufferAsync(Jimp.MIME_PNG);
+
+          const endTime = Date.now(); // End timing
+          const totalRequestTime = ((endTime - startTime) / 1000).toFixed(2);
+          console.log(`Total request processing time: ${totalRequestTime} seconds`);
+
+          return h.response(pngBuffer)
+            .type('image/png')
+            .header('Content-Disposition', 'inline; filename="rendered_image.png"');
+        } catch (err) {
+          console.error('Error processing image:', err);
+          return h.response({ error: 'Error processing image.' }).code(500);
+        }
       } catch (error) {
         console.error('Error during image rendering:', error);
         return h.response({ error: 'Error rendering image.' }).code(500);
