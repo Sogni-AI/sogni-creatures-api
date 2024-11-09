@@ -6,15 +6,17 @@ const path = require('path');
 const NodeCache = require('node-cache');
 const Jimp = require('jimp'); // Using Jimp for image manipulation
 
-// Configuration (same as before)
+// Configuration
 const apiUrl = 'http://localhost:7860/';
 const useInitImage = true; // Use guide images
+const negativePrompt = 'malformation, bad anatomy, bad hands, missing fingers, cropped, low quality, bad quality, jpeg artifacts, watermark, text, more than one character, multiple heads, multiple faces, shadow, borders, background';
 const blurLevel = 40; // Adjust as needed
-const overrideModel = 'flux1-schnell-fp8'; // Model to use
+const overrideModel = 'animagineXLV31_v31'; // Model to use
 const steps = 35;
 const cfgScale = 9; // Guidance
 const resolution = { width: 1024, height: 1024 };
 const denoisingStrength = 0.75;
+//const seed = 4128984066;
 const sampler = 'Euler a';
 const scheduler = 'Karras';
 const removeBackground = true; // Set to false to disable background removal
@@ -109,12 +111,13 @@ async function renderWithGuideImage(prompt, blurredBuffer) {
 
     const requestData = {
       prompt: prompt,
-      steps: 4,
-      cfg_scale: 1,
+      steps: steps,
+      negative_prompt: negativePrompt,
+      cfg_scale: cfgScale,
       width: resolution.width,
       height: resolution.height,
-      sampler_name: 'Euler',
-      scheduler: 'Simple',
+      sampler_name: sampler,
+      scheduler: scheduler,
       ...(useInitImage
         ? {
             init_images: initImages,
