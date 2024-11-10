@@ -103,7 +103,8 @@ async function renderWithGuideImage(prompt, blurredBuffer) {
     let initImages = [];
     if (useInitImage) {
       const blurredImageBase64 = blurredBuffer.toString('base64');
-      initImages = [`data:image/jpeg;base64,${blurredImageBase64}`];
+      // Change MIME type from 'jpeg' to 'png' since we're using PNG masks
+      initImages = [`data:image/png;base64,${blurredImageBase64}`];
       console.log('Using guide image for rendering...');
     } else {
       console.log('Rendering without guide image...');
@@ -207,7 +208,8 @@ const init = async () => {
 
       const prompt = `A cute ${animal} against a solid fill background, taking up full-page. Its body is ${color}-colored, with an expression and stance conveying a ${personality} personality. Solid Blank background, collectable creature, very cute and kawaii illustration, whimsical chibi art, lofi anime art, kanto style, fantasy animal, pokemon-style. No words or signatures.`;
 
-      const guideImagePath = path.join(animalsDir, `${animal}.jpg`); // Keeping the guide image as JPEG
+      // Change the guide image extension from .jpg to .png
+      const guideImagePath = path.join(animalsDir, `${animal}.png`); // Updated to PNG
       let blurredBuffer;
       try {
         blurredBuffer = cache.get(`blurred_${path.basename(guideImagePath)}`);
