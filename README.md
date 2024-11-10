@@ -9,13 +9,6 @@ A customizable image rendering service built on Sogni Supernet SDK. Uses  Hapi.j
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
-  - [Running the Server](#running-the-server)
-  - [API Endpoint](#api-endpoint)
-- [Guide Images](#guide-images)
-- [Caching](#caching)
-- [Dependencies](#dependencies)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Features
 
