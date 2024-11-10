@@ -8,9 +8,8 @@ const NodeCache = require('node-cache');
 // Configuration
 const apiUrl = 'http://localhost:7860/';
 const useInitImage = true; // Use guide images
-const negativePrompt = 'malformation, bad anatomy, bad hands, missing fingers, cropped, low quality, bad quality, jpeg artifacts, watermark, text, more than one character, multiple heads, multiple faces, shadow, borders, background';
 const blurLevel = 40; // Adjust as needed
-const overrideModel = 'animagineXLV31_v31'; // Model to use
+const overrideModel = 'flux1-schnell-fp8'; // Model to use
 const steps = 35;
 const cfgScale = 9; // Guidance
 const resolution = { width: 1024, height: 1024 };
@@ -101,13 +100,12 @@ async function renderWithGuideImage(prompt, blurredBuffer) {
 
     const requestData = {
       prompt: prompt,
-      negative_prompt: negativePrompt,
-      steps: steps,
-      cfg_scale: cfgScale,
+      steps: 4,
+      cfg_scale: 1,
       width: resolution.width,
       height: resolution.height,
-      sampler_name: sampler,
-      scheduler: scheduler,
+      sampler_name: 'Euler',
+      scheduler: 'Simple',
       ...(useInitImage
         ? {
             init_images: initImages,
@@ -195,14 +193,16 @@ const init = async () => {
         return h.response({ errors }).code(400);
       }
 
-      const prompt = `A cute ${animal} against a solid fill background. Its body is ${color}-colored, with an expression and stance conveying a ${personality} personality. Solid Blank background, collectable creature, very cute and kawaii illustration, whimsical chibi art, lofi anime art, kanto style, semi-realistic fantasy animal, pokemon-style`;
+      const prompt = `A cute ${animal} against a solid fill background, taking up full-page. Its body is ${color}-colored, with an expression and stance conveying a ${personality} personality. Solid Blank background, collectable creature, very cute and kawaii illustration, whimsical chibi art, lofi anime art, kanto style, fantasy animal, pokemon-style. No words or signatures.`;
 
       const guideImagePath = path.join(animalsDir, `${animal}.jpg`);
       let blurredBuffer;
-
+console.log('11');
       try {
+        console.log('22');
         blurredBuffer = cache.get(`blurred_${path.basename(guideImagePath)}`);
         if (!blurredBuffer) {
+          console.log('33');
           blurredBuffer = await blurImage(guideImagePath);
         }
       } catch (error) {
@@ -211,6 +211,7 @@ const init = async () => {
       }
 
       try {
+        console.log('44');
         const imageBuffer = await renderWithGuideImage(prompt, blurredBuffer);
 
         const endTime = Date.now(); // End timing
