@@ -216,7 +216,7 @@ const init = async () => {
           return sendError('Error processing image.');
         }
       } catch (error) {
-        //console.error('Error during image rendering:', error);
+        console.error('Error during image rendering:', error);
         return h.response({ error: 'Error rendering image.' }).code(500);
       }
     },
