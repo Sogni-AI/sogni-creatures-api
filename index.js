@@ -78,7 +78,7 @@ function waitProjectCompletion(project){
 // Initialize the Hapi server
 const init = async () => {
   const sogni = await SogniClient.createInstance({
-    appId: 'sogni-creatures',
+    appId: process.env.APP_ID,
     restEndpoint: 'https://api.sogni.ai',
     socketEndpoint: 'https://socket.sogni.ai',
     testnet: true,
