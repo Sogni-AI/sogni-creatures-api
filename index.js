@@ -9,7 +9,7 @@ const Jimp = require('jimp'); // Using Jimp for image manipulation
 // Configuration
 const apiUrl = 'http://localhost:7860/';
 const useInitImage = true; // Use guide images
-const negativePrompt = 'malformation, bad anatomy, bad hands, missing fingers, cropped, low quality, bad quality, jpeg artifacts, watermark, text, more than one character, multiple heads, multiple faces, shadow, borders, background';
+let negativePrompt = 'malformation, bad anatomy, bad hands, missing fingers, cropped, low quality, bad quality, jpeg artifacts, watermark, text, more than one character, multiple heads, multiple faces, shadow, borders, background';
 const blurLevel = 40; // Adjust as needed
 const overrideModel = 'animagineXLV31_v31'; // Model to use
 const steps = 35;
@@ -206,7 +206,9 @@ const init = async () => {
         return h.response({ errors }).code(400);
       }
 
-      const prompt = `A cute ${animal} against a solid fill background, taking up full-page. Its body is ${color}-colored, with an expression and stance conveying a ${personality} personality. Solid Blank background, collectable creature, very cute and kawaii illustration, whimsical chibi art, lofi anime art, kanto style, fantasy animal, pokemon-style. No words or signatures.`;
+      const prompt = `((one ${animal})), cute, full size, against a (solid fill background). ${color}-colored body, with an expression and stance conveying a ${personality} personality. Solid Blank background, collectable creature, very cute and kawaii illustration, whimsical chibi art, lofi anime art, kanto style, semi-realistic fantasy animal, pokemon-style`;
+      negativePrompt = `((many ${animal})), malformation, bad anatomy, bad hands, missing fingers, cropped, low quality, bad quality, jpeg artifacts, watermark, text, (more than one character), multiple heads, ((multiple animals)), shadows, borders, (incomplete character), multi-color background`;;
+      //const prompt = `A cute ${animal} against a solid fill background, taking up full-page. Its body is ${color}-colored, with an expression and stance conveying a ${personality} personality. Solid Blank background, collectable creature, very cute and kawaii illustration, whimsical chibi art, lofi anime art, kanto style, fantasy animal, pokemon-style. No words or signatures.`;
 
       // Change the guide image extension from .jpg to .png
       const guideImagePath = path.join(animalsDir, `${animal}.png`); // Updated to PNG
