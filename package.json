@@ -6,7 +6,7 @@
   "dependencies": {
     "@hapi/hapi": "^21.3.12",
     "@hapi/inert": "^7.1.0",
-    "@sogni-ai/sogni-client": "^0.0.19",
+    "@sogni-ai/sogni-client": "^0.0.20",
     "axios": "^1.7.7",
     "dotenv": "^16.4.5",
     "jimp": "^0.16.13",
