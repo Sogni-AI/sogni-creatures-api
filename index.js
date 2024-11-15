@@ -6,8 +6,10 @@ const sharp = require('sharp');
 const path = require('path');
 const NodeCache = require('node-cache');
 const removeImageBackground = require('./lib/removeImageBackground');
-const {SogniClient} = require("@sogni-ai/sogni-client");
 const fs = require("node:fs");
+const Creator = require('./lib/Creator');
+
+const sogniCreator = new Creator(process.env.APP_ID, process.env.SOGNI_USERNAME, process.env.SOGNI_PASSWORD);
 
 // Configuration
 const useInitImage = true; // Use guide images
@@ -59,49 +61,8 @@ async function blurImage(inputPath) {
   }
 }
 
-/**
- * Wrapper function to await project completion
- * @param project - Sogni project instance
- * @returns {Promise<Array<string>>} - Promise that resolves with the image URL array
- */
-function waitProjectCompletion(project){
-  return new Promise((resolve, reject)=>{
-    project.on('completed', (data)=>{
-      resolve(data);
-    });
-    project.on('failed', (data)=>{
-      reject(data);
-    });
-  });
-}
-
 // Initialize the Hapi server
 const init = async () => {
-  const sogni = await SogniClient.createInstance({
-    appId: process.env.APP_ID,
-    restEndpoint: 'https://api.sogni.ai',
-    socketEndpoint: 'https://socket.sogni.ai',
-    testnet: true,
-    network: 'fast'
-  });
-
-  sogni.apiClient.on('connected', ()=>{
-    console.log('Connected to Sogni API');
-  })
-
-  sogni.apiClient.on('disconnected', ({code, reason})=>{
-    console.error('Disconnected from Sogni API', code, reason);
-    setTimeout(()=>{
-      process.exit(1);
-    }, 100);
-  });
-
-  //Fired every time server sends list of available models
-  /*sogni.projects.on('availableModels', (models)=>{
-    console.log('Available models:', models);
-  });*/
-
-  await sogni.account.login(process.env.SOGNI_USERNAME, process.env.SOGNI_PASSWORD);
 
   const server = Hapi.server({
     port: 8080,
@@ -187,7 +148,7 @@ const init = async () => {
 
       try {
         // Project params interface here https://github.com/Sogni-AI/sogni-client/blob/bf4b8e3176bafbcb61a93329b497ba980cb7a8ca/src/Projects/types/index.ts#L46
-        const project = await sogni.projects.create({
+        const imageUrl = await sogniCreator.processRequest({
           modelId: overrideModel,
           positivePrompt: prompt,
           steps,
@@ -197,8 +158,7 @@ const init = async () => {
           startingImageStrength,
           scheduler,
           timeStepSpacing
-        })
-        const [imageUrl] = await waitProjectCompletion(project);
+        });
 
         //No need to remove background, send the image as is
         if(!removeBackground){
