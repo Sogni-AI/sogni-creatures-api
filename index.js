@@ -37,7 +37,7 @@ const animalsDir = path.join(__dirname, 'animals'); // Guide images directory
 // Initialize cache
 const cache = new NodeCache({ stdTTL: 3600 }); // 1 hour TTL
 
-// Function to blur the image and cache it (same as before)
+// Function to blur the image and cache it
 async function blurImage(inputPath) {
   try {
     const cachedImage = cache.get(`blurred_${path.basename(inputPath)}`);
@@ -115,6 +115,15 @@ const init = async () => {
 
   await server.register(Inert);
 
+  // Heartbeat route
+  server.route({
+    method: 'GET',
+    path: '/heartbeat',
+    handler: (request, h) => {
+      return h.response('1').code(200);
+    },
+  });
+
   server.route({
     method: 'GET',
     path: '/',
@@ -167,9 +176,9 @@ const init = async () => {
 
       const prompt = `((one ${animal})), cute, full size, against a (solid fill background). ${color}-colored body, with an expression and stance conveying a ${personality} personality. Solid Blank background, collectable creature, very cute and kawaii illustration, whimsical chibi art, lofi anime art, kanto style, semi-realistic fantasy animal, pokemon-style`;
       negativePrompt = `((many ${animal})), malformation, bad anatomy, bad hands, missing fingers, cropped, low quality, bad quality, jpeg artifacts, watermark, text, (more than one character), multiple heads, ((multiple animals)), shadows, borders, (incomplete character), multi-color background`;
-      //const prompt = `A cute ${animal} against a solid fill background, taking up full-page. Its body is ${color}-colored, with an expression and stance conveying a ${personality} personality. Solid Blank background, collectable creature, very cute and kawaii illustration, whimsical chibi art, lofi anime art, kanto style, fantasy animal, pokemon-style. No words or signatures.`;
 
-      const guideImagePath = path.join(animalsDir, `${animal}.png`); // Updated to PNG
+      //const prompt = `A cute ${animal} against a solid fill background, taking up full-page. Its body is ${color}-colored, with an expression and stance conveying a ${personality} personality. Solid Blank background, collectable creature, very cute and kawaii illustration, whimsical chibi art, lofi anime art, kanto style, fantasy animal, pokemon-style. No words or signatures.`;
+      const guideImagePath = path.join(animalsDir, `${animal}.png`);
       let startingImage;
       if(blurLevel > 0){
         try {
@@ -206,7 +215,7 @@ const init = async () => {
           return sendResult(imageStream.data);
         }
 
-        // Process the image to remove background color using flood fill
+        // Process the image to remove background color
         const imageBuffer = await axios.get(imageUrl, { responseType: 'arraybuffer' }).then((response) => response.data);
         try {
           const resultingImage = await removeImageBackground(imageBuffer);
@@ -216,7 +225,7 @@ const init = async () => {
           return sendError('Error processing image.');
         }
       } catch (error) {
-        //console.error('Error during image rendering:', error);
+        console.error('Error during image rendering:', error);
         return h.response({ error: 'Error rendering image.' }).code(500);
       }
     },
