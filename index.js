@@ -79,10 +79,9 @@ function waitProjectCompletion(project){
 const init = async () => {
   const sogni = await SogniClient.createInstance({
     appId: process.env.APP_ID,
-    restEndpoint: 'https://api.sogni.ai',
-    socketEndpoint: 'https://socket.sogni.ai',
     testnet: true,
-    network: 'fast'
+    network: 'fast',
+    logLevel: 'warn', // Set to 'debug' to see what is sent/received through socket
   });
 
   sogni.apiClient.on('connected', ()=>{
@@ -199,6 +198,8 @@ const init = async () => {
         const project = await sogni.projects.create({
           modelId: overrideModel,
           positivePrompt: prompt,
+          negativePrompt:'',
+          stylePrompt: '',
           steps,
           guidance,
           numberOfImages: 1,
