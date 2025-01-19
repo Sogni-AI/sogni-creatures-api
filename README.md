@@ -1,6 +1,8 @@
 # Sogni Creatures API
 
-A customizable image rendering service built on Sogni Supernet SDK. Uses  Hapi.js, leveraging guide images and advanced image processing techniques to generate unique illustrations based on user-defined parameters.
+A customizable image rendering service (REST-based API) built on Sogni Supernet SDK. Uses Hapi.js, leveraging guide images and advanced image processing techniques to generate unique illustrations based on user-defined parameters.
+
+See an example of it in action at: https://creatures.sogni.ai
 
 ## Table of Contents
 
