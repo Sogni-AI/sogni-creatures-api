@@ -3,6 +3,7 @@
 A customizable image rendering service (REST-based API) built on Sogni Supernet SDK. Uses Hapi.js, leveraging guide images and advanced image processing techniques to generate unique illustrations based on user-defined parameters.
 
 See an example of it in action at: https://creatures.sogni.ai
+Frontend code available at https://github.com/Sogni-AI/sogni-creatures-frontend
 
 ## Table of Contents
 
@@ -42,3 +43,13 @@ The server will run on http://0.0.0.0:8080/ by default.
 ## API Endpoint example:
 
 `GET http://localhost:8080/?animal=dog&color=blue&personality=loyal`
+
+## Learn More
+- [Sogni website](https://sogni.ai/)
+- [Sogni SDK docs](https://www.sogni.ai/sdk)
+
+---
+
+## License
+
+This project is licensed under the terms of the [MIT License](LICENSE).
