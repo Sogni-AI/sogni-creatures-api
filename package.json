@@ -1,4 +1,20 @@
 {
+  "name": "sogni-creatures-api",
+  "version": "0.1.0",
+  "description": "REST API for the Sogni Creatures demo — generates animal/color/personality illustrations via the Sogni Supernet SDK.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sogni-AI/sogni-creatures-api.git"
+  },
+  "homepage": "https://creatures.sogni.ai",
+  "bugs": {
+    "url": "https://github.com/Sogni-AI/sogni-creatures-api/issues"
+  },
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"
