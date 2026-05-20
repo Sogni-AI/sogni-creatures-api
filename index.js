@@ -17,8 +17,12 @@ const overrideModel = 'coreml-animagineXLV31'; // Model to use
 const steps = 32;
 const guidance = 8; // Guidance
 const startingImageStrength = 0.20;
-const scheduler = 'DPM Solver Multistep (DPM-Solver++)';
-const timeStepSpacing = 'Karras';
+// Sampler/scheduler naming changed in sogni-client 4.0.0. The old `scheduler`
+// became `sampler` (string alias) and the old `timeStepSpacing` became
+// `scheduler`. Use `sogni.projects.getModelOptions(modelId)` at runtime to
+// discover valid options for a given model.
+const sampler = 'dpmpp_2m_sde';
+const scheduler = 'karras';
 const removeBackground = true; // Set to false to disable background removal
 
 const animals = [
@@ -194,19 +198,22 @@ const init = async () => {
       }
 
       try {
-        // Project params interface here https://github.com/Sogni-AI/sogni-client/blob/bf4b8e3176bafbcb61a93329b497ba980cb7a8ca/src/Projects/types/index.ts#L46
+        // sogni-client 5.0 ImageProjectParams: requires `type: 'image'`,
+        // uses `numberOfMedia` (formerly `numberOfImages`), and uses
+        // `sampler`/`scheduler` string aliases (formerly `scheduler`/`timeStepSpacing`).
         const project = await sogni.projects.create({
+          type: 'image',
           modelId: overrideModel,
           positivePrompt: prompt,
           negativePrompt:'',
           stylePrompt: '',
           steps,
           guidance,
-          numberOfImages: 1,
+          numberOfMedia: 1,
           startingImage,
           startingImageStrength,
-          scheduler,
-          timeStepSpacing
+          sampler,
+          scheduler
         })
         const [imageUrl] = await waitProjectCompletion(project);
 
