@@ -46,6 +46,27 @@ Frontend code available at https://github.com/Sogni-AI/sogni-creatures-frontend
    # then edit .env with your Sogni credentials
    ```
 
+## Configuration
+
+Set Sogni credentials and optional operational settings in `.env`:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `APP_ID` | *(required)* | Client application identifier passed to `@sogni-ai/sogni-client`. |
+| `SOGNI_USERNAME` | *(required)* | Sogni account username. |
+| `SOGNI_PASSWORD` | *(required)* | Sogni account password. |
+| `HOST` | `0.0.0.0` | Bind address for the HTTP server. |
+| `PORT` | `8084` | Listening port for the HTTP server. |
+| `CORS_ORIGINS` | `*` | Allowed CORS origins (`*` or a comma-separated list of origins). |
+| `API_KEY` | *(unset)* | Optional shared key for `GET /` (`Authorization: Bearer <key>` or `x-api-key: <key>`). Leave unset for unauthenticated browser access. |
+| `TRUST_PROXY` | `false` | Set to `true` behind Cloudflare or a reverse proxy to read client IPs from `cf-connecting-ip` or `x-forwarded-for`. |
+| `RATE_LIMIT_MAX` | `10` | Maximum `GET /` requests per client IP within each rate-limit window (`0` disables the built-in limiter). |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Per-IP rate-limit window duration in milliseconds. |
+| `MAX_CONCURRENT_RENDERS` | `5` | Maximum concurrent active renders before returning `429`. |
+| `RENDER_TIMEOUT_MS` | `60000` | Maximum wait time in milliseconds for a Sogni render job before cancelling and returning `504`. |
+| `DOWNLOAD_TIMEOUT_MS` | `20000` | Maximum time in milliseconds to download a completed render result. |
+| `MAX_IMAGE_BYTES` | `20971520` | Maximum rendered image download size in bytes (20 MiB). |
+
 ## Usage
 
 ```bash
@@ -54,13 +75,19 @@ npm start
 
 The server listens on `http://0.0.0.0:8084/` by default.
 
+Run the offline test suite with:
+
+```bash
+npm test
+```
+
 ## API Endpoint example
 
 `GET http://localhost:8084/?animal=dog&color=blue&personality=loyal`
 
 ## Production notes
 
-This service has **no built-in authentication and CORS is wide open by default**, so operators are expected to put it behind their own auth/rate-limit/CORS layer before exposing it to the public internet. The reference deployment (`creatures.sogni.ai`) runs behind a Cloudflare allowlist and a per-IP rate limit.
+By default, `API_KEY` is unset and `CORS_ORIGINS` is `*` so browser frontends such as `creatures.sogni.ai` work out of the box. Built-in per-IP rate limiting, active render concurrency caps, and render/download timeouts are enabled by default and can be tuned via environment variables alongside edge controls such as Cloudflare allowlists and rate-limiting rules.
 
 ## Learn More
 - [Sogni website](https://sogni.ai/)
