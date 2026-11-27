@@ -94,6 +94,12 @@ describe('sogni-creatures-api server', () => {
         return;
       }
 
+      if (req.url === '/fixture/stalled-download.png') {
+        res.writeHead(200, { 'Content-Type': 'image/png' });
+        res.write(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+        return;
+      }
+
       res.writeHead(404);
       res.end('not found');
     });
@@ -410,6 +416,38 @@ describe('sogni-creatures-api server', () => {
     }
   });
 
+  it('returns 504 when downloading a rendered image times out', async () => {
+    const sogniClient = {
+      projects: {
+        create: async () =>
+          createMockProject({ autoCompleteUrls: [`${mediaBaseUrl}/fixture/stalled-download.png`] }),
+      },
+    };
+
+    const server = await createServer({
+      sogniClient,
+      port: 0,
+      host: '127.0.0.1',
+      downloadTimeoutMs: 80,
+      allowLocalMediaUrls: true,
+    });
+
+    try {
+      const startedAt = Date.now();
+      const response = await server.inject({
+        method: 'GET',
+        url: '/?animal=dog&color=blue&personality=loyal',
+      });
+      const elapsedMs = Date.now() - startedAt;
+
+      assert.equal(response.statusCode, 504);
+      assert.deepEqual(JSON.parse(response.payload), { error: 'Image download timed out.' });
+      assert.ok(elapsedMs < 2000, `Expected prompt download timeout, took ${elapsedMs}ms`);
+    } finally {
+      await server.stop();
+    }
+  });
+
   it('aborts oversized image downloads mid-stream before full payload transfer and validates media URLs', async () => {
     const maxImageBytes = 512 * 1024; // 512 KiB cap against a 100 MiB response stream
 
@@ -457,6 +495,14 @@ describe('sogni-creatures-api server', () => {
 
     await assert.rejects(
       () =>
+        downloadRenderedImage('https://[::127.0.0.1]/image.png', {
+          allowLocalMediaUrls: false,
+        }),
+      (err) => err && err.code === 'INVALID_MEDIA_URL'
+    );
+
+    await assert.rejects(
+      () =>
         downloadRenderedImage('https://user:pass@example.com/image.png', {
           allowLocalMediaUrls: false,
         }),
@@ -467,7 +513,10 @@ describe('sogni-creatures-api server', () => {
     assert.equal(isPublicIpAddress('169.254.169.254'), false);
     assert.equal(isPublicIpAddress('10.0.0.8'), false);
     assert.equal(isPublicIpAddress('::1'), false);
+    assert.equal(isPublicIpAddress('::7f00:1'), false);
+    assert.equal(isPublicIpAddress('::a9fe:a9fe'), false);
     assert.equal(isPublicIpAddress('::ffff:127.0.0.1'), false);
+    assert.equal(isPublicIpAddress('2606:4700:4700::1111'), true);
     assert.equal(isPublicIpAddress('93.184.216.34'), true);
 
     // Redirect hops are re-validated too

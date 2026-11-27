@@ -74,6 +74,7 @@ const NON_PUBLIC_BLOCKLIST = (() => {
   blockList.addSubnet('224.0.0.0', 4, 'ipv4');
   blockList.addSubnet('240.0.0.0', 4, 'ipv4');
   // Non-public IPv6 ranges
+  blockList.addSubnet('::', 96, 'ipv6');
   blockList.addSubnet('::', 128, 'ipv6');
   blockList.addSubnet('::1', 128, 'ipv6');
   blockList.addSubnet('64:ff9b::', 96, 'ipv6');
@@ -805,6 +806,10 @@ async function createServer(options = {}) {
         if (error && error.code === 'RENDER_TIMEOUT') {
           console.error('Image rendering timed out:', error.message);
           return sendError('Image rendering timed out.', 504);
+        }
+        if (error && error.code === 'DOWNLOAD_TIMEOUT') {
+          console.error('Image download timed out:', error.message);
+          return sendError('Image download timed out.', 504);
         }
         console.error('Error during image rendering:', error);
         return sendError('Error rendering image.', 500);
